@@ -15,8 +15,8 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Конфигурация
-MEME_CHANNEL_ID = 123456789012345678  # смени с ID на #мемета
-NEWS_CHANNEL_ID = 123456789012345678  # смени с ID на #новини-и-ъпдейти
+MEME_CHANNEL_ID = 1318885132048007190  
+NEWS_CHANNEL_ID = 1318885004188586004  
 ROLE_THRESHOLDS = [
     (20, "🧍 Покорителя на Център Мала"),
     (40, "🎩 Приближен до Георги Димитров"),
@@ -90,7 +90,7 @@ async def on_message(message):
 @tasks.loop(hours=1)
 async def weekly_check():
     now = datetime.utcnow()
-    if now.weekday() == 6 and now.hour == 17:  # Неделя 20:00 BG време = 17:00 UTC
+    if now.weekday() == 6 and now.hour == 17:  # Неделя 20:00 BG време
         data = load_data()
         sorted_users = sorted(data.items(), key=lambda x: x[1]["weekly"], reverse=True)
         if not sorted_users or sorted_users[0][1]["weekly"] == 0:
