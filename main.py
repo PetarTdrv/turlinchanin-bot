@@ -10,6 +10,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"Ботът е онлайн като {bot.user}")
 
-TOKEN = "MTQwMTUxMDAwODk1NjY0OTUxMw.GXwO-R.UoAeH51necyd6yJKXxFxCzm0Ue_gicwhUd08PY"
+TOKEN = "MTQwMTUxMDAwODk1NjY0OTUxMw.GYCmrR.hFFG4oCtXYOGOzBO1Bp_bt7yz-C_7oV3TwLeGY"
 
 bot.run(TOKEN)
