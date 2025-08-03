@@ -1,128 +1,117 @@
-
 import discord
 from discord.ext import commands, tasks
 import json
 import os
-from datetime import datetime, timedelta
-from keep_alive import keep_alive
 
 intents = discord.Intents.default()
-intents.messages = True
 intents.message_content = True
-intents.guilds = True
-intents.members = True
+intents.members = True  # Нужно за роли
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Конфигурация
-MEME_CHANNEL_ID = 1318885132048007190  
-NEWS_CHANNEL_ID = 1318885004188586004  
-ROLE_THRESHOLDS = [
-    (20, "🧍 Покорителя на Център Мала"),
-    (40, "🎩 Приближен до Георги Димитров"),
-    (60, "🧔‍♂️ Биг Бос"),
-    (80, "🧠 Аврамче"),
-    (100, "🏔️ Минделец"),
-    (120, "📰 Селски Клюкар"),
-    (140, "🔫 Ал Капоне"),
-    (160, "👮 Корона Инс"),
-    (180, "🍾 Хуска"),
-    (200, "💿 Див Турлинчанин")
-]
-KING_ROLE_NAME = "👑 Турлинчанин"
-DATA_FILE = "meme_data.json"
+# Тук сложи реалните ID-та от твоя сървър
+MEME_CHANNEL_ID = 1318885132048007190    # канал #мемета
+NEWS_CHANNEL_ID = 1318885004188586004   # канал #новини-и-ъпдейти
 
-# Зареждане/създаване на база
-if not os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "w") as f:
-        json.dump({}, f)
+# Файл за запазване на мемета
+DATA_FILE = "meme_counts.json"
 
-def load_data():
+# Зареждаме мемета от файл (ако има)
+if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
-        return json.load(f)
+        meme_counts = json.load(f)
+    # JSON keys са стрингове, превръщаме ги в int
+    meme_counts = {int(k): v for k, v in meme_counts.items()}
+else:
+    meme_counts = {}
 
-def save_data(data):
+# Роли с техните прагове
+roles_thresholds = {
+    20: "Покорителя на Център Мала",
+    40: "Приближен до Георги Димитров",
+    60: "Биг Бос",
+    80: "Аврамче",
+    100: "Минделец",
+    120: "Селски Клюкар",
+    140: "Ал Капоне",
+    160: "Корона Инс",
+    180: "Хуска",
+    200: "Див Турлинчанин"
+}
+
+turlichanin_role_name = "Турлинчанин 👑"
+
+
+def save_meme_counts():
     with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump(meme_counts, f)
+
 
 @bot.event
 async def on_ready():
-    print(f"✅ Ботът е онлайн като {bot.user}")
-    weekly_check.start()
+    print(f"Ботът е онлайн като {bot.user}")
+
 
 @bot.event
 async def on_message(message):
-    if message.author.bot or message.channel.id != MEME_CHANNEL_ID:
+    if message.author.bot:
         return
 
-    has_media = bool(message.attachments) or "http" in message.content
-    if not has_media:
-        return
+    if message.channel.id == MEME_CHANNEL_ID:
+        user = message.author
+        user_id = user.id
 
-    data = load_data()
-    user_id = str(message.author.id)
+        # Увеличаваме мемета
+        meme_counts[user_id] = meme_counts.get(user_id, 0) + 1
+        print(f"{user} изпрати меме. Общо: {meme_counts[user_id]}")
 
-    if user_id not in data:
-        data[user_id] = {"total": 0, "weekly": 0}
+        guild = message.guild
+        news_channel = bot.get_channel(NEWS_CHANNEL_ID)
 
-    data[user_id]["total"] += 1
-    data[user_id]["weekly"] += 1
-    save_data(data)
+        # Проверка за ролите
+        new_role_name = None
+        for threshold in sorted(roles_thresholds):
+            if meme_counts[user_id] >= threshold:
+                new_role_name = roles_thresholds[threshold]
 
-    member = message.author
-    guild = message.guild
+        if new_role_name:
+            new_role = discord.utils.get(guild.roles, name=new_role_name)
+            turlichanin_role = discord.utils.get(guild.roles, name=turlichanin_role_name)
+            user_roles = user.roles
 
-    for threshold, role_name in ROLE_THRESHOLDS:
-        if data[user_id]["total"] == threshold:
-            role = discord.utils.get(guild.roles, name=role_name)
-            if role:
-                await member.add_roles(role)
-                news_channel = bot.get_channel(NEWS_CHANNEL_ID)
+            # Премахваме мем роли, различни от новата
+            roles_to_remove = [r for r in user_roles if r.name in roles_thresholds.values() and r.name != new_role_name]
+            if roles_to_remove:
+                await user.remove_roles(*roles_to_remove)
+                print(f"Премахнати роли от {user}: {[r.name for r in roles_to_remove]}")
+
+            # Добавяме новата роля, ако я няма
+            if new_role and new_role not in user_roles:
+                await user.add_roles(new_role)
+                print(f"Добавена роля на {user}: {new_role_name}")
                 if news_channel:
-                    await news_channel.send(
-                        f"📦 **Нова Меме Роля!**"
-                        f"<@{user_id}> качи **{threshold} мемета** в <#{MEME_CHANNEL_ID}>"
-                        f"🏅 Получаваш титлата **{role_name}**!"
-                        f"Следващото ниво те чака напред – натискай още! 🚀"
-                    )
+                    await news_channel.send(f"🎉 {user.mention} току-що получи ролята **{new_role_name}** за изпратени {meme_counts[user_id]} мемета!")
+
+        # Ако има >=200 мемета — добавяме "Турлинчанин 👑"
+        if meme_counts[user_id] >= 200:
+            turlichanin_role = discord.utils.get(guild.roles, name=turlichanin_role_name)
+            if turlichanin_role and turlichanin_role not in user.roles:
+                # Премахваме всички мем роли
+                roles_to_remove = [r for r in user.roles if r.name in roles_thresholds.values()]
+                if roles_to_remove:
+                    await user.remove_roles(*roles_to_remove)
+                await user.add_roles(turlichanin_role)
+                print(f"Добавена роля Турлинчанин 👑 на {user}")
+                if news_channel:
+                    await news_channel.send(f"👑 {user.mention} е новият **Турлинчанин 👑** с {meme_counts[user_id]} мемета! Честито!")
+                meme_counts[user_id] = 0  # Нулиране на броя мемета след Турлинчанин
+
+        save_meme_counts()
+
     await bot.process_commands(message)
 
-@tasks.loop(hours=1)
-async def weekly_check():
-    now = datetime.utcnow()
-    if now.weekday() == 6 and now.hour == 17:  # Неделя 20:00 BG време
-        data = load_data()
-        sorted_users = sorted(data.items(), key=lambda x: x[1]["weekly"], reverse=True)
-        if not sorted_users or sorted_users[0][1]["weekly"] == 0:
-            return
-        guild = bot.guilds[0]
-        news_channel = bot.get_channel(NEWS_CHANNEL_ID)
-        king_role = discord.utils.get(guild.roles, name=KING_ROLE_NAME)
 
-        # Премахни старата роля
-        for member in guild.members:
-            if king_role in member.roles:
-                await member.remove_roles(king_role)
+# Тук слагаш своя Discord token
+TOKEN = "MTQwMTUxMDAwODk1NjY0OTUxMw.GXwO-R.UoAeH51necyd6yJKXxFxCzm0Ue_gicwhUd08PY"
 
-        top_3 = sorted_users[:3]
-        winner_id = int(top_3[0][0])
-        winner = guild.get_member(winner_id)
-        if winner and king_role:
-            await winner.add_roles(king_role)
-
-        text = "**📊 Седмична Меме Класация!**"
-        medals = ["🥇", "🥈", "🥉"]
-        for i, (uid, val) in enumerate(top_3):
-            text += f"{medals[i]} <@{uid}> — {val['weekly']} мемета"
-        text += f"👑 Новият **{KING_ROLE_NAME}** е: <@{winner_id}>!"
-
-        if news_channel:
-            await news_channel.send(text)
-
-        # Нулирай седмичния брояч
-        for user_id in data:
-            data[user_id]["weekly"] = 0
-        save_data(data)
-
-keep_alive()
-bot.run(os.getenv("TOKEN"))
+bot.run(TOKEN)
