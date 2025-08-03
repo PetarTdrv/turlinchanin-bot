@@ -80,14 +80,9 @@ async def on_message(message):
                 news_channel = bot.get_channel(NEWS_CHANNEL_ID)
                 if news_channel:
                     await news_channel.send(
-                        f"📦 **Нова Меме Роля!**
-
-"
-                        f"<@{user_id}> качи **{threshold} мемета** в <#{MEME_CHANNEL_ID}>
-"
-                        f"🏅 Получаваш титлата **{role_name}**!
-
-"
+                        f"📦 **Нова Меме Роля!**"
+                        f"<@{user_id}> качи **{threshold} мемета** в <#{MEME_CHANNEL_ID}>"
+                        f"🏅 Получаваш титлата **{role_name}**!"
                         f"Следващото ниво те чака напред – натискай още! 🚀"
                     )
     await bot.process_commands(message)
@@ -115,15 +110,11 @@ async def weekly_check():
         if winner and king_role:
             await winner.add_roles(king_role)
 
-        text = "**📊 Седмична Меме Класация!**
-
-"
+        text = "**📊 Седмична Меме Класация!**"
         medals = ["🥇", "🥈", "🥉"]
         for i, (uid, val) in enumerate(top_3):
-            text += f"{medals[i]} <@{uid}> — {val['weekly']} мемета
-"
-        text += f"
-👑 Новият **{KING_ROLE_NAME}** е: <@{winner_id}>!"
+            text += f"{medals[i]} <@{uid}> — {val['weekly']} мемета"
+        text += f"👑 Новият **{KING_ROLE_NAME}** е: <@{winner_id}>!"
 
         if news_channel:
             await news_channel.send(text)
